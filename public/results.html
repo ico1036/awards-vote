@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>실시간 결과 · THE AWARDS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,500;1,700&family=Jost:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <div class="topbar">
+        <div class="brand">
+          <a href="/" class="mark">THE AWARDS</a>
+          <span class="sub">Live Results</span>
+        </div>
+        <div class="nav">
+          <span class="badge live">실시간</span>
+          <a class="btn btn-sm btn-ghost" href="/vote.html">투표하기</a>
+          <a class="btn btn-sm btn-ghost" href="/admin.html">관리자</a>
+        </div>
+      </div>
+
+      <div class="tabs" id="tabs"></div>
+      <div id="stage"></div>
+    </main>
+
+    <script src="/common.js"></script>
+    <script>
+      let STATE = { teams: [], awards: [] };
+      let activeId = null;
+      const decidedSeen = new Set(); // award ids we've already celebrated for
+
+      function award() {
+        return STATE.awards.find((a) => a.id === activeId) || STATE.awards[0] || null;
+      }
+
+      function renderTabs() {
+        const tabs = document.getElementById('tabs');
+        if (!STATE.awards.length) {
+          tabs.innerHTML = '';
+          return;
+        }
+        if (!activeId || !STATE.awards.find((a) => a.id === activeId)) activeId = STATE.awards[0].id;
+        tabs.innerHTML = STATE.awards
+          .map(
+            (a) =>
+              `<button class="tab ${a.id === activeId ? 'active' : ''}" data-id="${a.id}">${esc(a.title)}${a.decided ? '<span class="dot">★</span>' : ''}</button>`
+          )
+          .join('');
+        tabs.querySelectorAll('.tab').forEach((t) => {
+          t.onclick = () => {
+            activeId = t.dataset.id;
+            renderTabs();
+            renderStage();
+          };
+        });
+      }
+
+      function renderStage() {
+        const stage = document.getElementById('stage');
+        const a = award();
+        if (!a) {
+          stage.innerHTML = '<p class="empty">아직 등록된 상이 없습니다. 관리자 페이지에서 상을 추가하세요.</p>';
+          return;
+        }
+        const sorted = [...a.results].sort((x, y) => y.count - x.count);
+        const max = Math.max(1, ...sorted.map((r) => r.count));
+        const leadCount = sorted.length ? sorted[0].count : 0;
+
+        const bars = sorted
+          .map((r) => {
+            const pct = Math.round((r.count / max) * 100);
+            const isLead = r.count === leadCount && leadCount > 0;
+            const isWinner = a.decided && a.winnerTeamId === r.teamId;
+            const cls = ['bar-row'];
+            if (isLead && !a.decided) cls.push('lead');
+            if (a.decided && !isWinner) cls.push('dim');
+            const share = a.totalVotes ? Math.round((r.count / a.totalVotes) * 100) : 0;
+            return `
+              <div class="${cls.join(' ')}">
+                <div class="bar-head">
+                  <span class="bar-name">${isWinner ? '<span class="crown">🏆</span>' : isLead && !a.decided ? '<span class="crown">★</span>' : ''}${esc(r.teamName)}</span>
+                  <span class="bar-val"><b>${r.count}</b> 표 · ${share}%</span>
+                </div>
+                <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+              </div>`;
+          })
+          .join('');
+
+        stage.innerHTML = `
+          <div class="frame reveal">
+            <div class="corners"><span></span><span></span><span></span><span></span></div>
+            <div class="row spread" style="align-items:flex-start;margin-bottom:6px">
+              <div>
+                <div class="eyebrow">Award · ${esc(a.title)}</div>
+                <h1 style="font-size:clamp(2rem,6vw,3.4rem);margin-top:10px">${esc(a.title)}</h1>
+                ${a.description ? `<p class="dim" style="font-family:var(--cormorant);font-style:italic;font-size:1.2rem;margin:4px 0 0">${esc(a.description)}</p>` : ''}
+              </div>
+              <span class="badge ${a.decided ? 'decided' : 'live'}">${a.decided ? '수상 확정' : a.totalVotes + ' 표'}</span>
+            </div>
+            <div class="deco-rule"><i></i></div>
+            <div class="bars">${bars || '<p class="empty">등록된 팀이 없습니다.</p>'}</div>
+            <div class="deco-rule"><i></i></div>
+            <div class="center">
+              ${
+                a.decided
+                  ? `<div class="stack" style="align-items:center;gap:14px">
+                       <div class="muted" style="font-size:.72rem;letter-spacing:.3em;text-transform:uppercase">Winner</div>
+                       <div style="font-family:var(--serif);font-size:clamp(1.8rem,5vw,2.6rem);color:var(--gold-bright)">🏆 ${esc(a.winnerTeamName || '')}</div>
+                       <div class="row" style="justify-content:center">
+                         <button class="btn btn-gold" id="replayBtn">발표 다시 보기</button>
+                         <button class="btn btn-ghost btn-sm" id="reopenBtn">결정 취소</button>
+                       </div>
+                     </div>`
+                  : `<button class="btn btn-gold" id="decideBtn" style="font-size:.9rem;padding:16px 38px" ${a.totalVotes ? '' : 'disabled'}>
+                       ✦ 최종 결정 — 수상자 발표 ✦
+                     </button>
+                     <p class="muted" style="font-size:.72rem;margin-top:12px;letter-spacing:.08em">
+                       ${a.totalVotes ? '최다 득표 팀이 수상자로 결정됩니다.' : '투표가 접수되면 발표할 수 있습니다.'}
+                     </p>`
+              }
+            </div>
+          </div>`;
+
+        const decideBtn = document.getElementById('decideBtn');
+        if (decideBtn) decideBtn.onclick = () => decide(a);
+        const replayBtn = document.getElementById('replayBtn');
+        if (replayBtn) replayBtn.onclick = () => showWinner(a.title, a.winnerTeamName);
+        const reopenBtn = document.getElementById('reopenBtn');
+        if (reopenBtn) reopenBtn.onclick = () => reopen(a);
+      }
+
+      async function ensureAdmin() {
+        if (getAdminPass()) return true;
+        const pass = prompt('수상자를 발표하려면 관리자 비밀번호를 입력하세요.');
+        if (pass == null) return false;
+        try {
+          await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ password: pass }) });
+          setAdminPass(pass);
+          return true;
+        } catch (e) {
+          toast(e.message, true);
+          return false;
+        }
+      }
+
+      async function decide(a) {
+        if (!(await ensureAdmin())) return;
+        const leader = [...a.results].sort((x, y) => y.count - x.count)[0];
+        if (!leader || !leader.count) return toast('아직 투표가 없습니다.', true);
+        const ok = confirm(`'${a.title}' 수상자를 '${leader.teamName}'(으)로 확정합니다. 계속할까요?`);
+        if (!ok) return;
+        try {
+          const res = await adminApi(`/api/admin/awards/${a.id}/decide`, { method: 'POST', body: '{}' });
+          decidedSeen.add(a.id);
+          showWinner(a.title, res.winnerTeamName);
+        } catch (e) {
+          if (e.status === 401) clearAdminPass();
+          toast(e.message, true);
+        }
+      }
+
+      async function reopen(a) {
+        if (!(await ensureAdmin())) return;
+        if (!confirm('수상 결정을 취소하고 투표를 다시 열까요?')) return;
+        try {
+          await adminApi(`/api/admin/awards/${a.id}/reopen`, { method: 'POST', body: '{}' });
+          decidedSeen.delete(a.id);
+          toast('결정이 취소되었습니다.');
+        } catch (e) {
+          toast(e.message, true);
+        }
+      }
+
+      // ---- boot ----
+      connectStream((s) => {
+        STATE = s;
+        renderTabs();
+        renderStage();
+        // auto-celebrate when an award becomes decided (e.g. triggered from admin page)
+        for (const a of STATE.awards) {
+          if (a.decided && a.winnerTeamId && !decidedSeen.has(a.id)) {
+            decidedSeen.add(a.id);
+            if (a.id === activeId) showWinner(a.title, a.winnerTeamName);
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>관리자 · THE AWARDS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,500;1,700&family=Jost:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1.25fr;
+        gap: 20px;
+        align-items: start;
+      }
+      @media (max-width: 820px) {
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .section-title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .section-title h2 {
+        font-size: 1.5rem;
+      }
+      .count-pill {
+        font-size: 0.66rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--gold);
+      }
+      .award-admin {
+        border: 1px solid var(--line-soft);
+        border-radius: 3px;
+        padding: 16px;
+        margin-bottom: 12px;
+        background: rgba(0, 0, 0, 0.18);
+      }
+      .award-admin h4 {
+        font-family: var(--serif);
+        font-size: 1.3rem;
+        margin: 0;
+      }
+      .mini-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin: 12px 0;
+      }
+      .mini {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.78rem;
+      }
+      .mini .mn {
+        width: 84px;
+        color: var(--ink-dim);
+        font-family: var(--cormorant);
+        font-size: 1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mini .mt {
+        flex: 1;
+        height: 8px;
+        background: rgba(0, 0, 0, 0.4);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .mini .mf {
+        height: 100%;
+        background: linear-gradient(90deg, var(--gold-soft), var(--gold-bright));
+        transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .mini .mv {
+        width: 40px;
+        text-align: right;
+        color: var(--gold-bright);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ===== Login overlay ===== -->
+    <div class="overlay" id="gate">
+      <div class="modal">
+        <div class="center">
+          <div class="eyebrow">Administrator</div>
+          <h2 style="font-size: 2rem; margin: 10px 0 4px">관리자 인증</h2>
+          <p class="muted" style="font-size: 0.82rem">상과 팀을 등록하고 시상식을 운영합니다.</p>
+        </div>
+        <div class="deco-rule"><i></i></div>
+        <form id="gateForm">
+          <label class="field"><span>비밀번호</span>
+            <input type="password" id="pass" placeholder="관리자 비밀번호" autofocus />
+          </label>
+          <button class="btn btn-gold" style="width: 100%" type="submit">입장</button>
+          <p class="muted center" style="font-size: 0.7rem; margin-top: 12px">기본값: admin1234</p>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===== Main ===== -->
+    <main class="shell hidden" id="app">
+      <div class="topbar">
+        <div class="brand">
+          <a href="/" class="mark">THE AWARDS</a>
+          <span class="sub">Admin Console</span>
+        </div>
+        <div class="nav">
+          <a class="btn btn-sm btn-ghost" href="/results.html">발표 화면</a>
+          <a class="btn btn-sm btn-ghost" href="/vote.html">투표 화면</a>
+          <button class="btn btn-sm btn-danger" id="resetVotes">투표 초기화</button>
+          <button class="btn btn-sm btn-ghost" id="logout">로그아웃</button>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <!-- Teams -->
+        <section class="panel">
+          <div class="section-title">
+            <h2>팀 명단</h2>
+            <span class="count-pill" id="teamCount"></span>
+          </div>
+          <form id="teamForm" class="row" style="margin-bottom: 16px">
+            <input type="text" id="teamName" placeholder="새 팀 이름" class="grow" />
+            <button class="btn btn-gold" type="submit">추가</button>
+          </form>
+          <ul class="list" id="teamList"></ul>
+        </section>
+
+        <!-- Awards -->
+        <section class="panel">
+          <div class="section-title">
+            <h2>상장 목록</h2>
+            <span class="count-pill" id="awardCount"></span>
+          </div>
+          <form id="awardForm" class="stack" style="margin-bottom: 18px">
+            <label class="field" style="margin: 0">
+              <span>상 이름</span>
+              <input type="text" id="awardTitle" placeholder="예: 올해의 팀" />
+            </label>
+            <label class="field" style="margin: 0">
+              <span>설명 (선택)</span>
+              <input type="text" id="awardDesc" placeholder="한 줄 설명" />
+            </label>
+            <button class="btn btn-gold" type="submit">상 추가</button>
+          </form>
+          <div class="deco-rule"><i></i></div>
+          <div id="awardList"></div>
+        </section>
+      </div>
+    </main>
+
+    <script src="/common.js"></script>
+    <script>
+      let STATE = { teams: [], awards: [] };
+      const gate = document.getElementById('gate');
+      const app = document.getElementById('app');
+
+      function showApp() {
+        gate.classList.add('hidden');
+        app.classList.remove('hidden');
+      }
+
+      // ---- gate ----
+      document.getElementById('gateForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const pass = document.getElementById('pass').value;
+        try {
+          await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ password: pass }) });
+          setAdminPass(pass);
+          showApp();
+          render();
+        } catch (err) {
+          toast(err.message, true);
+        }
+      };
+
+      // ---- teams ----
+      document.getElementById('teamForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('teamName');
+        const name = input.value.trim();
+        if (!name) return;
+        try {
+          await adminApi('/api/admin/teams', { method: 'POST', body: JSON.stringify({ name }) });
+          input.value = '';
+          toast('팀이 추가되었습니다.');
+        } catch (err) {
+          handleErr(err);
+        }
+      };
+
+      async function delTeam(id, name) {
+        if (!confirm(`'${name}' 팀을 삭제할까요? 관련 투표도 함께 삭제됩니다.`)) return;
+        try {
+          await adminApi('/api/admin/teams/' + id, { method: 'DELETE' });
+          toast('삭제되었습니다.');
+        } catch (err) {
+          handleErr(err);
+        }
+      }
+
+      // ---- awards ----
+      document.getElementById('awardForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const t = document.getElementById('awardTitle');
+        const d = document.getElementById('awardDesc');
+        const title = t.value.trim();
+        if (!title) return;
+        try {
+          await adminApi('/api/admin/awards', {
+            method: 'POST',
+            body: JSON.stringify({ title, description: d.value.trim() }),
+          });
+          t.value = '';
+          d.value = '';
+          toast('상이 추가되었습니다.');
+        } catch (err) {
+          handleErr(err);
+        }
+      };
+
+      async function editAward(a) {
+        const title = prompt('상 이름', a.title);
+        if (title == null) return;
+        const description = prompt('설명', a.description || '');
+        if (description == null) return;
+        try {
+          await adminApi('/api/admin/awards/' + a.id, {
+            method: 'PUT',
+            body: JSON.stringify({ title, description }),
+          });
+          toast('수정되었습니다.');
+        } catch (err) {
+          handleErr(err);
+        }
+      }
+
+      async function delAward(a) {
+        if (!confirm(`'${a.title}' 상을 삭제할까요?`)) return;
+        try {
+          await adminApi('/api/admin/awards/' + a.id, { method: 'DELETE' });
+          toast('삭제되었습니다.');
+        } catch (err) {
+          handleErr(err);
+        }
+      }
+
+      async function decideAward(a) {
+        const leader = [...a.results].sort((x, y) => y.count - x.count)[0];
+        if (!leader || !leader.count) return toast('아직 투표가 없습니다.', true);
+        if (!confirm(`'${a.title}' 수상자를 '${leader.teamName}'(으)로 확정합니다. 계속할까요?`)) return;
+        try {
+          const res = await adminApi(`/api/admin/awards/${a.id}/decide`, { method: 'POST', body: '{}' });
+          showWinner(a.title, res.winnerTeamName);
+        } catch (err) {
+          handleErr(err);
+        }
+      }
+
+      async function reopenAward(a) {
+        if (!confirm('수상 결정을 취소할까요?')) return;
+        try {
+          await adminApi(`/api/admin/awards/${a.id}/reopen`, { method: 'POST', body: '{}' });
+          toast('결정이 취소되었습니다.');
+        } catch (err) {
+          handleErr(err);
+        }
+      }
+
+      document.getElementById('resetVotes').onclick = async () => {
+        if (!confirm('모든 투표와 수상 결정을 초기화할까요? 되돌릴 수 없습니다.')) return;
+        try {
+          await adminApi('/api/admin/reset-votes', { method: 'POST', body: '{}' });
+          toast('초기화되었습니다.');
+        } catch (err) {
+          handleErr(err);
+        }
+      };
+
+      document.getElementById('logout').onclick = () => {
+        clearAdminPass();
+        location.reload();
+      };
+
+      function handleErr(err) {
+        if (err.status === 401) {
+          clearAdminPass();
+          toast('인증이 만료되었습니다. 다시 로그인하세요.', true);
+          gate.classList.remove('hidden');
+          app.classList.add('hidden');
+        } else {
+          toast(err.message, true);
+        }
+      }
+
+      // ---- render ----
+      function render() {
+        if (app.classList.contains('hidden')) return;
+        document.getElementById('teamCount').textContent = STATE.teams.length + ' teams';
+        document.getElementById('awardCount').textContent = STATE.awards.length + ' awards';
+
+        // teams
+        const tl = document.getElementById('teamList');
+        tl.innerHTML = STATE.teams.length
+          ? STATE.teams
+              .map(
+                (t) =>
+                  `<li><span class="name">${esc(t.name)}</span>
+                   <button class="btn btn-sm btn-danger" data-del-team="${t.id}" data-name="${esc(t.name)}">삭제</button></li>`
+              )
+              .join('')
+          : '<p class="empty">등록된 팀이 없습니다.</p>';
+        tl.querySelectorAll('[data-del-team]').forEach((b) => {
+          b.onclick = () => delTeam(b.dataset.delTeam, b.dataset.name);
+        });
+
+        // awards
+        const al = document.getElementById('awardList');
+        al.innerHTML = STATE.awards.length
+          ? STATE.awards
+              .map((a, i) => {
+                const max = Math.max(1, ...a.results.map((r) => r.count));
+                const sorted = [...a.results].sort((x, y) => y.count - x.count);
+                const bars = sorted
+                  .map(
+                    (r) =>
+                      `<div class="mini"><span class="mn">${esc(r.teamName)}</span>
+                        <span class="mt"><span class="mf" style="width:${Math.round((r.count / max) * 100)}%"></span></span>
+                        <span class="mv">${r.count}</span></div>`
+                  )
+                  .join('');
+                return `
+                  <div class="award-admin">
+                    <div class="row spread">
+                      <div>
+                        <div class="muted" style="font-size:.6rem;letter-spacing:.3em;text-transform:uppercase">상 ${String(i + 1).padStart(2, '0')}</div>
+                        <h4>${esc(a.title)}</h4>
+                        ${a.description ? `<div class="muted" style="font-size:.8rem">${esc(a.description)}</div>` : ''}
+                      </div>
+                      <span class="badge ${a.decided ? 'decided' : 'live'}">${a.decided ? '🏆 ' + esc(a.winnerTeamName || '') : a.totalVotes + ' 표'}</span>
+                    </div>
+                    <div class="mini-bars">${bars || '<span class="muted" style="font-size:.78rem">팀을 먼저 추가하세요.</span>'}</div>
+                    <div class="row" style="gap:6px">
+                      ${
+                        a.decided
+                          ? `<button class="btn btn-sm" data-replay="${a.id}">발표 보기</button>
+                             <button class="btn btn-sm btn-ghost" data-reopen="${a.id}">결정 취소</button>`
+                          : `<button class="btn btn-sm btn-gold" data-decide="${a.id}" ${a.totalVotes ? '' : 'disabled'}>최종 결정</button>`
+                      }
+                      <button class="btn btn-sm btn-ghost" data-edit="${a.id}">수정</button>
+                      <button class="btn btn-sm btn-danger" data-del="${a.id}">삭제</button>
+                    </div>
+                  </div>`;
+              })
+              .join('')
+          : '<p class="empty">등록된 상이 없습니다.</p>';
+
+        const byId = (id) => STATE.awards.find((a) => a.id === id);
+        al.querySelectorAll('[data-decide]').forEach((b) => (b.onclick = () => decideAward(byId(b.dataset.decide))));
+        al.querySelectorAll('[data-reopen]').forEach((b) => (b.onclick = () => reopenAward(byId(b.dataset.reopen))));
+        al.querySelectorAll('[data-replay]').forEach((b) => {
+          const a = byId(b.dataset.replay);
+          b.onclick = () => showWinner(a.title, a.winnerTeamName);
+        });
+        al.querySelectorAll('[data-edit]').forEach((b) => (b.onclick = () => editAward(byId(b.dataset.edit))));
+        al.querySelectorAll('[data-del]').forEach((b) => (b.onclick = () => delAward(byId(b.dataset.del))));
+      }
+
+      // ---- boot ----
+      if (getAdminPass()) {
+        // verify stored pass
+        api('/api/admin/login', { method: 'POST', body: JSON.stringify({ password: getAdminPass() }) })
+          .then(() => {
+            showApp();
+            render();
+          })
+          .catch(() => clearAdminPass());
+      }
+      connectStream((s) => {
+        STATE = s;
+        render();
+      });
+    </script>
+  </body>
+</html>

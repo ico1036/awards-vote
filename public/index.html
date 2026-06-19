@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>THE AWARDS · 시상식 투표</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,500;1,700&family=Jost:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      .hero {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40px 20px;
+        position: relative;
+      }
+      .hero .rays {
+        position: absolute;
+        top: -10%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 140vw;
+        height: 90vh;
+        z-index: -1;
+        background: conic-gradient(
+          from 0deg at 50% 30%,
+          transparent 0deg 9deg,
+          rgba(201, 164, 92, 0.07) 9deg 13deg,
+          transparent 13deg 24deg
+        );
+        mask: radial-gradient(ellipse 60% 60% at 50% 30%, #000 5%, transparent 60%);
+        -webkit-mask: radial-gradient(ellipse 60% 60% at 50% 30%, #000 5%, transparent 60%);
+        animation: spin 80s linear infinite;
+      }
+      .hero .year {
+        font-family: var(--sans);
+        letter-spacing: 0.6em;
+        font-size: 0.8rem;
+        color: var(--gold);
+        margin-bottom: 26px;
+      }
+      .hero h1 {
+        font-weight: 900;
+        font-size: clamp(3.2rem, 13vw, 8.5rem);
+        line-height: 0.92;
+        letter-spacing: 0.02em;
+        background: linear-gradient(180deg, #fff7e2, var(--gold-bright) 50%, var(--gold-soft));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        text-shadow: 0 0 90px var(--gold-glow);
+      }
+      .hero .tagline {
+        font-family: var(--cormorant);
+        font-style: italic;
+        font-size: clamp(1.1rem, 3vw, 1.6rem);
+        color: var(--ink-dim);
+        margin-top: 12px;
+        max-width: 560px;
+      }
+      .doors {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+        margin-top: 48px;
+        width: min(720px, 100%);
+      }
+      .door {
+        position: relative;
+        display: block;
+        padding: 34px 26px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: var(--panel);
+        text-align: center;
+        transition: all 0.3s ease;
+        overflow: hidden;
+      }
+      .door::before {
+        content: '';
+        position: absolute;
+        inset: 6px;
+        border: 1px solid var(--line-soft);
+        border-radius: 2px;
+        transition: inset 0.3s;
+      }
+      .door:hover {
+        border-color: var(--gold);
+        transform: translateY(-4px);
+        box-shadow: 0 24px 50px -28px var(--gold-glow);
+      }
+      .door:hover::before {
+        inset: 10px;
+      }
+      .door .num {
+        font-family: var(--serif);
+        font-size: 0.8rem;
+        color: var(--gold);
+        letter-spacing: 0.3em;
+      }
+      .door .t {
+        font-family: var(--serif);
+        font-size: 1.8rem;
+        margin: 12px 0 6px;
+        color: var(--ink);
+      }
+      .door .d {
+        font-size: 0.82rem;
+        color: var(--muted);
+        letter-spacing: 0.06em;
+      }
+      .footnote {
+        margin-top: 40px;
+        font-size: 0.72rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="hero">
+      <div class="rays"></div>
+      <div class="year reveal" style="animation-delay: 0.05s">A&nbsp;&nbsp;C&nbsp;&nbsp;E&nbsp;&nbsp;R&nbsp;&nbsp;E&nbsp;&nbsp;M&nbsp;&nbsp;O&nbsp;&nbsp;N&nbsp;&nbsp;Y</div>
+      <h1 class="reveal" style="animation-delay: 0.15s">THE&nbsp;AWARDS</h1>
+      <div class="deco-rule reveal" style="animation-delay: 0.3s; width: 280px"><i></i></div>
+      <p class="tagline reveal" style="animation-delay: 0.4s">
+        오늘 밤, 가장 빛나는 팀을 향한 투표가 시작됩니다.
+      </p>
+
+      <nav class="doors">
+        <a class="door reveal" href="/vote.html" style="animation-delay: 0.55s">
+          <div class="num">Ⅰ</div>
+          <div class="t">게스트 투표</div>
+          <div class="d">소속 팀으로 입장 · 상별 투표</div>
+        </a>
+        <a class="door reveal" href="/results.html" style="animation-delay: 0.7s">
+          <div class="num">Ⅱ</div>
+          <div class="t">실시간 결과</div>
+          <div class="d">막대그래프 · 수상자 발표</div>
+        </a>
+        <a class="door reveal" href="/admin.html" style="animation-delay: 0.85s">
+          <div class="num">Ⅲ</div>
+          <div class="t">관리자</div>
+          <div class="d">상 · 팀 등록 / 운영</div>
+        </a>
+      </nav>
+
+      <div class="footnote reveal" style="animation-delay: 1s">Live Voting · Real-time Results</div>
+    </main>
+  </body>
+</html>

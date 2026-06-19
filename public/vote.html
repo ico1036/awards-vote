@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>투표 · THE AWARDS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,500;1,700&family=Jost:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <!-- ===== Login overlay ===== -->
+    <div class="overlay" id="loginOverlay">
+      <div class="modal">
+        <div class="center">
+          <div class="eyebrow">Guest Check-in</div>
+          <h2 style="font-size: 2rem; margin: 10px 0 4px">입장</h2>
+          <p class="muted" style="font-size: 0.85rem; letter-spacing: 0.04em">
+            당신의 <b style="color: var(--gold-bright)">소속 팀</b>을 선택하세요.<br />본인 팀에는 투표할 수 없습니다.
+          </p>
+        </div>
+        <div class="deco-rule"><i></i></div>
+        <div class="chip-grid" id="loginTeams"></div>
+        <p class="empty hidden" id="noTeams">아직 등록된 팀이 없습니다. 관리자에게 문의하세요.</p>
+      </div>
+    </div>
+
+    <!-- ===== Main ===== -->
+    <main class="shell hidden" id="app">
+      <div class="topbar">
+        <div class="brand">
+          <a href="/" class="mark">THE AWARDS</a>
+          <span class="sub">Guest Voting</span>
+        </div>
+        <div class="nav">
+          <span class="badge" id="myTeamBadge"></span>
+          <a class="btn btn-sm btn-ghost" href="/results.html">실시간 결과</a>
+          <button class="btn btn-sm btn-ghost" id="switchTeam">팀 변경</button>
+        </div>
+      </div>
+
+      <div class="center" style="margin-bottom: 8px">
+        <div class="eyebrow">Cast your votes</div>
+        <h1 style="font-size: clamp(1.8rem, 5vw, 3rem); margin-top: 8px">상별 투표</h1>
+        <p class="muted" style="font-size: 0.82rem">상마다 원하는 팀을 한 곳에 투표하세요. 언제든 변경할 수 있습니다.</p>
+      </div>
+      <div class="deco-rule"><i></i></div>
+
+      <div id="awards"></div>
+    </main>
+
+    <script src="/common.js"></script>
+    <script>
+      let STATE = { teams: [], awards: [] };
+      let MYVOTES = {};
+      const voter = getVoter();
+
+      const loginOverlay = document.getElementById('loginOverlay');
+      const appEl = document.getElementById('app');
+
+      function renderLogin() {
+        const box = document.getElementById('loginTeams');
+        const none = document.getElementById('noTeams');
+        if (!STATE.teams.length) {
+          box.innerHTML = '';
+          none.classList.remove('hidden');
+          return;
+        }
+        none.classList.add('hidden');
+        box.innerHTML = STATE.teams
+          .map(
+            (t) =>
+              `<button class="chip" data-id="${t.id}" data-name="${esc(t.name)}">${esc(t.name)}<span class="tag">우리 팀</span></button>`
+          )
+          .join('');
+        box.querySelectorAll('.chip').forEach((c) => {
+          c.onclick = () => {
+            setVoterTeam(c.dataset.id, c.dataset.name);
+            voter.voterTeamId = c.dataset.id;
+            voter.voterTeamName = c.dataset.name;
+            enterApp();
+          };
+        });
+      }
+
+      function enterApp() {
+        // validate stored team still exists
+        const team = STATE.teams.find((t) => t.id === voter.voterTeamId);
+        if (!team) {
+          clearVoterTeam();
+          voter.voterTeamId = '';
+          loginOverlay.classList.remove('hidden');
+          appEl.classList.add('hidden');
+          renderLogin();
+          return;
+        }
+        voter.voterTeamName = team.name;
+        document.getElementById('myTeamBadge').textContent = '우리 팀 · ' + team.name;
+        loginOverlay.classList.add('hidden');
+        appEl.classList.remove('hidden');
+        renderAwards();
+      }
+
+      async function loadMyVotes() {
+        try {
+          MYVOTES = await api('/api/my-votes?voterId=' + encodeURIComponent(voter.voterId));
+        } catch (e) {
+          MYVOTES = {};
+        }
+      }
+
+      async function castVote(awardId, teamId) {
+        const prev = MYVOTES[awardId];
+        MYVOTES[awardId] = teamId; // optimistic
+        renderAwards();
+        try {
+          await api('/api/vote', {
+            method: 'POST',
+            body: JSON.stringify({
+              awardId,
+              teamId,
+              voterId: voter.voterId,
+              voterTeamId: voter.voterTeamId,
+            }),
+          });
+          const t = STATE.teams.find((x) => x.id === teamId);
+          toast(`'${t ? t.name : ''}' 에 투표했습니다 ✓`);
+        } catch (e) {
+          MYVOTES[awardId] = prev; // rollback
+          renderAwards();
+          toast(e.message, true);
+        }
+      }
+
+      function renderAwards() {
+        if (appEl.classList.contains('hidden')) return;
+        const wrap = document.getElementById('awards');
+        if (!STATE.awards.length) {
+          wrap.innerHTML = '<p class="empty">아직 등록된 상이 없습니다.</p>';
+          return;
+        }
+        wrap.innerHTML = STATE.awards
+          .map((a, idx) => {
+            const myPick = MYVOTES[a.id];
+            const max = Math.max(1, ...a.results.map((r) => r.count));
+            if (a.decided) {
+              return `
+              <div class="award-card reveal" style="animation-delay:${0.05 * idx}s">
+                <div class="row spread">
+                  <div><div class="kicker">상 ${String(idx + 1).padStart(2, '0')}</div>
+                  <h3>${esc(a.title)}</h3></div>
+                  <span class="badge decided">수상 확정</span>
+                </div>
+                <div class="center" style="padding:14px 0 6px">
+                  <div class="muted" style="font-size:.72rem;letter-spacing:.3em;text-transform:uppercase">Winner</div>
+                  <div style="font-family:var(--serif);font-size:2rem;color:var(--gold-bright);margin-top:4px">🏆 ${esc(a.winnerTeamName || '')}</div>
+                </div>
+              </div>`;
+            }
+            const options = STATE.teams
+              .map((t) => {
+                const isOwn = t.id === voter.voterTeamId;
+                const sel = myPick === t.id;
+                const res = a.results.find((r) => r.teamId === t.id) || { count: 0 };
+                const pct = Math.round((res.count / max) * 100);
+                return `
+                <button class="chip ${sel ? 'selected' : ''} ${isOwn ? 'disabled' : ''}"
+                        ${isOwn ? 'disabled' : ''} data-award="${a.id}" data-team="${t.id}">
+                  ${esc(t.name)}
+                  <span class="tag">${isOwn ? '본인 팀' : res.count + ' 표'}</span>
+                  ${isOwn ? '' : `<span style="position:absolute;left:0;bottom:0;height:3px;width:${pct}%;background:linear-gradient(90deg,var(--gold-soft),var(--gold-bright));border-radius:2px;transition:width .8s cubic-bezier(.22,1,.36,1)"></span>`}
+                </button>`;
+              })
+              .join('');
+            return `
+              <div class="award-card reveal" style="animation-delay:${0.05 * idx}s">
+                <div class="row spread" style="align-items:flex-start">
+                  <div>
+                    <div class="kicker">상 ${String(idx + 1).padStart(2, '0')}</div>
+                    <h3>${esc(a.title)}</h3>
+                    ${a.description ? `<div class="desc">${esc(a.description)}</div>` : '<div style="height:8px"></div>'}
+                  </div>
+                  <span class="badge live">${a.totalVotes} 표</span>
+                </div>
+                <div class="chip-grid">${options}</div>
+                ${myPick ? '' : '<p class="muted" style="font-size:.74rem;margin:14px 0 0;letter-spacing:.06em">▸ 아직 투표하지 않았습니다.</p>'}
+              </div>`;
+          })
+          .join('');
+
+        wrap.querySelectorAll('.chip[data-team]').forEach((c) => {
+          if (c.disabled) return;
+          c.onclick = () => castVote(c.dataset.award, c.dataset.team);
+        });
+      }
+
+      document.getElementById('switchTeam').onclick = () => {
+        clearVoterTeam();
+        voter.voterTeamId = '';
+        appEl.classList.add('hidden');
+        loginOverlay.classList.remove('hidden');
+        renderLogin();
+      };
+
+      // ---- boot ----
+      (async () => {
+        await loadMyVotes();
+        connectStream((s) => {
+          STATE = s;
+          if (voter.voterTeamId && STATE.teams.find((t) => t.id === voter.voterTeamId)) {
+            enterApp();
+          } else {
+            renderLogin();
+            if (!appEl.classList.contains('hidden')) {
+              // team removed mid-session
+              appEl.classList.add('hidden');
+              loginOverlay.classList.remove('hidden');
+            }
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
