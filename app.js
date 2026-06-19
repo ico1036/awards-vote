@@ -9,7 +9,15 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 function seed() {
-  const teams = ['오로라', '네뷸라', '카멜롯', '피닉스'].map((n) => ({
+  const teams = [
+    'Legato',
+    'Provenance Tracker',
+    'Covet',
+    '커넥팅닷',
+    '정책 규제 인사이트 수혜/피해 히트맵',
+    '잠자는동안 입금중',
+    'TTS 티끌모아 태산',
+  ].map((n) => ({
     id: crypto.randomUUID(),
     name: n,
   }));

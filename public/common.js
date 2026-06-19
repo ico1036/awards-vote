@@ -8,9 +8,10 @@ function esc(s) {
 }
 
 async function api(path, opts = {}) {
+  const { headers, ...rest } = opts;
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
-    ...opts,
+    ...rest,
+    headers: { 'Content-Type': 'application/json', ...(headers || {}) },
   });
   let data = null;
   try {
