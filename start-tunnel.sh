@@ -19,6 +19,10 @@ tmux send-keys -t "$SESSION":server \
 # 서버가 뜰 시간을 잠깐 준다
 sleep 2
 
+# 1.5) 절전 방지 창 (맥이 잠들면 서버/터널이 멈춰 URL이 끊김)
+tmux new-window -t "$SESSION" -n awake
+tmux send-keys -t "$SESSION":awake "caffeinate -dimsu" Enter
+
 # 2) 터널 창
 : > "$CF_LOG"
 tmux new-window -t "$SESSION" -n tunnel
