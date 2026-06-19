@@ -64,19 +64,56 @@ function clearVoterTeam() {
   localStorage.removeItem('awards.teamName');
 }
 
-/* ---- realtime stream ---- */
+/* ---- realtime stream (SSE with polling fallback) ----
+   일부 터널/프록시(cloudflared --protocol http2 등)는 SSE를 버퍼링해 막습니다.
+   그래서 ① 처음에 /api/state 로 즉시 1회 렌더하고, ② SSE 푸시를 시도하되,
+   SSE가 조용하거나 끊기면 폴링으로 폴백합니다. 어떤 환경에서도 화면이 갱신됩니다. */
 function connectStream(onState) {
-  const es = new EventSource('/api/stream');
-  es.onmessage = (e) => {
+  let gotSSE = false;
+  let pollTimer = null;
+
+  async function poll() {
     try {
-      onState(JSON.parse(e.data));
-    } catch (err) {
-      /* ignore */
+      onState(await api('/api/state'));
+    } catch (e) {
+      /* ignore transient errors */
     }
-  };
-  es.onerror = () => {
-    /* EventSource auto-reconnects */
-  };
+  }
+  function startPolling() {
+    if (pollTimer) return;
+    poll();
+    pollTimer = setInterval(poll, 1500);
+  }
+
+  // ① 즉시 1회 렌더 (SSE 연결 전에도 팀/상장이 바로 보이도록)
+  poll();
+
+  // ② 실시간 푸시 시도
+  let es = null;
+  try {
+    es = new EventSource('/api/stream');
+    es.onmessage = (e) => {
+      gotSSE = true;
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      try {
+        onState(JSON.parse(e.data));
+      } catch (err) {
+        /* ignore */
+      }
+    };
+    es.onerror = () => startPolling();
+  } catch (e) {
+    startPolling();
+  }
+
+  // ③ SSE가 곧 데이터를 주지 않으면 폴링으로 폴백
+  setTimeout(() => {
+    if (!gotSSE) startPolling();
+  }, 2500);
+
   return es;
 }
 

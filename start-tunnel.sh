@@ -23,7 +23,7 @@ sleep 2
 : > "$CF_LOG"
 tmux new-window -t "$SESSION" -n tunnel
 tmux send-keys -t "$SESSION":tunnel \
-  "cloudflared tunnel --no-autoupdate --url http://localhost:$PORT > '$CF_LOG' 2>&1" Enter
+  "cloudflared tunnel --no-autoupdate --protocol http2 --url http://localhost:$PORT > '$CF_LOG' 2>&1" Enter
 
 # 3) 자동배포 워처 (git remote 'origin' 이 있을 때만)
 if git -C "$DIR" remote get-url origin >/dev/null 2>&1; then
