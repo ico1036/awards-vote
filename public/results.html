@@ -40,13 +40,19 @@
         return STATE.awards.find((a) => a.id === activeId) || STATE.awards[0] || null;
       }
 
+      let tabsSig = null;
       function renderTabs() {
         const tabs = document.getElementById('tabs');
         if (!STATE.awards.length) {
           tabs.innerHTML = '';
+          tabsSig = '';
           return;
         }
         if (!activeId || !STATE.awards.find((a) => a.id === activeId)) activeId = STATE.awards[0].id;
+        // 탭은 구조(상장/제목/결정/선택탭)가 바뀔 때만 다시 그림 (표수 변화엔 갱신 안 함)
+        const sig = activeId + '#' + STATE.awards.map((a) => a.id + '|' + a.title + '|' + (a.decided ? 'D' : '0')).join(',');
+        if (sig === tabsSig) return;
+        tabsSig = sig;
         tabs.innerHTML = STATE.awards
           .map(
             (a) =>
@@ -62,37 +68,33 @@
         });
       }
 
-      function renderStage() {
+      // 막대그래프는 구조(상장/팀/결정상태/선택탭)가 바뀔 때만 1회 생성하고,
+      // 표 수·순위·막대 길이는 제자리에서 갱신 → 동시 투표가 쏟아져도 깜빡임 없음.
+      let stageSig = null;
+
+      function stageSignature(a) {
+        return (
+          activeId + '#' + a.id + '|' + a.title + '|' + (a.description || '') + '|' +
+          (a.decided ? 'D:' + a.winnerTeamId : '0') + '#' +
+          STATE.teams.map((t) => t.id + ':' + t.name).join(',')
+        );
+      }
+
+      function buildStage(a) {
         const stage = document.getElementById('stage');
-        const a = award();
-        if (!a) {
-          stage.innerHTML = '<p class="empty">아직 등록된 상이 없습니다. 관리자 페이지에서 상을 추가하세요.</p>';
-          return;
-        }
-        const sorted = [...a.results].sort((x, y) => y.count - x.count);
-        const max = Math.max(1, ...sorted.map((r) => r.count));
-        const leadCount = sorted.length ? sorted[0].count : 0;
-
-        const bars = sorted
-          .map((r) => {
-            const pct = Math.round((r.count / max) * 100);
-            const isLead = r.count === leadCount && leadCount > 0;
-            const isWinner = a.decided && a.winnerTeamId === r.teamId;
-            const cls = ['bar-row'];
-            if (isLead && !a.decided) cls.push('lead');
-            if (a.decided && !isWinner) cls.push('dim');
-            const share = a.totalVotes ? Math.round((r.count / a.totalVotes) * 100) : 0;
-            return `
-              <div class="${cls.join(' ')}">
+        // 팀 행은 등록순(고정)으로 생성, 순위는 flex order 로만 바꿔 DOM 재생성/깜빡임 없음
+        const rows = a.results
+          .map(
+            (r) => `
+              <div class="bar-row" data-team="${r.teamId}">
                 <div class="bar-head">
-                  <span class="bar-name">${isWinner ? '<span class="crown">🏆</span>' : isLead && !a.decided ? '<span class="crown">★</span>' : ''}${esc(r.teamName)}</span>
-                  <span class="bar-val"><b>${r.count}</b> 표 · ${share}%</span>
+                  <span class="bar-name"><span class="crown rank-mark" style="display:none"></span><span class="tname">${esc(r.teamName)}</span></span>
+                  <span class="bar-val"><b class="cnt">0</b> 표 · <span class="share">0</span>%</span>
                 </div>
-                <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
-              </div>`;
-          })
+                <div class="bar-track"><div class="bar-fill" style="width:0%"></div></div>
+              </div>`
+          )
           .join('');
-
         stage.innerHTML = `
           <div class="frame reveal">
             <div class="corners"><span></span><span></span><span></span><span></span></div>
@@ -102,10 +104,10 @@
                 <h1 style="font-size:clamp(2rem,6vw,3.4rem);margin-top:10px">${esc(a.title)}</h1>
                 ${a.description ? `<p class="dim" style="font-family:var(--cormorant);font-style:italic;font-size:1.2rem;margin:4px 0 0">${esc(a.description)}</p>` : ''}
               </div>
-              <span class="badge ${a.decided ? 'decided' : 'live'}">${a.decided ? '수상 확정' : a.totalVotes + ' 표'}</span>
+              <span class="badge ${a.decided ? 'decided' : 'live'} stage-total">${a.decided ? '수상 확정' : a.totalVotes + ' 표'}</span>
             </div>
             <div class="deco-rule"><i></i></div>
-            <div class="bars">${bars || '<p class="empty">등록된 팀이 없습니다.</p>'}</div>
+            <div class="bars">${rows || '<p class="empty">등록된 팀이 없습니다.</p>'}</div>
             <div class="deco-rule"><i></i></div>
             <div class="center">
               ${
@@ -127,13 +129,62 @@
               }
             </div>
           </div>`;
-
         const decideBtn = document.getElementById('decideBtn');
-        if (decideBtn) decideBtn.onclick = () => decide(a);
+        if (decideBtn) decideBtn.onclick = () => decide(award());
         const replayBtn = document.getElementById('replayBtn');
-        if (replayBtn) replayBtn.onclick = () => showWinner(a.title, a.winnerTeamName);
+        if (replayBtn) replayBtn.onclick = () => { const x = award(); showWinner(x.title, x.winnerTeamName); };
         const reopenBtn = document.getElementById('reopenBtn');
-        if (reopenBtn) reopenBtn.onclick = () => reopen(a);
+        if (reopenBtn) reopenBtn.onclick = () => reopen(award());
+      }
+
+      function patchStage(a) {
+        const stage = document.getElementById('stage');
+        const total = stage.querySelector('.stage-total');
+        if (total && !a.decided) total.textContent = a.totalVotes + ' 표';
+        const sorted = [...a.results].sort((x, y) => y.count - x.count);
+        const max = Math.max(1, ...sorted.map((r) => r.count));
+        const leadCount = sorted.length ? sorted[0].count : 0;
+        sorted.forEach((r, rank) => {
+          const row = stage.querySelector(`.bar-row[data-team="${r.teamId}"]`);
+          if (!row) return;
+          row.style.order = rank; // 순위 변경은 flex order 로 (DOM 이동/재생성 없음)
+          const pct = Math.round((r.count / max) * 100);
+          const share = a.totalVotes ? Math.round((r.count / a.totalVotes) * 100) : 0;
+          const isLead = r.count === leadCount && leadCount > 0;
+          const isWinner = a.decided && a.winnerTeamId === r.teamId;
+          row.classList.toggle('lead', isLead && !a.decided);
+          row.classList.toggle('dim', a.decided && !isWinner);
+          const mark = row.querySelector('.rank-mark');
+          if (mark) {
+            const sym = isWinner ? '🏆' : isLead && !a.decided ? '★' : '';
+            mark.textContent = sym;
+            mark.style.display = sym ? '' : 'none';
+          }
+          const cnt = row.querySelector('.cnt');
+          if (cnt) cnt.textContent = r.count;
+          const sh = row.querySelector('.share');
+          if (sh) sh.textContent = share;
+          const fill = row.querySelector('.bar-fill');
+          if (fill) fill.style.width = pct + '%';
+        });
+        const decideBtn = document.getElementById('decideBtn');
+        if (decideBtn) decideBtn.disabled = !a.totalVotes;
+      }
+
+      function renderStage() {
+        const stage = document.getElementById('stage');
+        const a = award();
+        if (!a) {
+          stage.innerHTML = '<p class="empty">아직 등록된 상이 없습니다. 관리자 페이지에서 상을 추가하세요.</p>';
+          stageSig = null;
+          return;
+        }
+        const sig = stageSignature(a);
+        if (sig !== stageSig) {
+          stageSig = sig;
+          buildStage(a);
+        }
+        patchStage(a);
       }
 
       async function ensureAdmin() {

@@ -136,8 +136,23 @@
         }
       }
 
-      function renderAwards() {
-        if (appEl.classList.contains('hidden')) return;
+      // 구조(상장/팀/제목/결정상태/내 소속팀)가 바뀌었을 때만 전체를 다시 만들고,
+      // 표 수·선택·막대 같은 잦은 변화는 제자리에서 갱신 → 깜빡임 없음(동시 다발 투표에도 안정).
+      let awardsSig = null;
+
+      function awardsSignature() {
+        return (
+          STATE.awards
+            .map((a) => a.id + '|' + a.title + '|' + (a.description || '') + '|' + (a.decided ? 'D:' + a.winnerTeamId : '0'))
+            .join(',') +
+          '#' +
+          STATE.teams.map((t) => t.id + ':' + t.name).join(',') +
+          '#' +
+          (voter.voterTeamId || '')
+        );
+      }
+
+      function buildAwards() {
         const wrap = document.getElementById('awards');
         if (!STATE.awards.length) {
           wrap.innerHTML = '<p class="empty">아직 등록된 상이 없습니다.</p>';
@@ -149,7 +164,7 @@
             const max = Math.max(1, ...a.results.map((r) => r.count));
             if (a.decided) {
               return `
-              <div class="award-card reveal" style="animation-delay:${0.05 * idx}s">
+              <div class="award-card reveal" data-award-card="${a.id}" style="animation-delay:${0.05 * idx}s">
                 <div class="row spread">
                   <div><div class="kicker">상 ${String(idx + 1).padStart(2, '0')}</div>
                   <h3>${esc(a.title)}</h3></div>
@@ -172,22 +187,22 @@
                         ${isOwn ? 'disabled' : ''} data-award="${a.id}" data-team="${t.id}">
                   ${esc(t.name)}
                   <span class="tag">${isOwn ? '본인 팀' : res.count + ' 표'}</span>
-                  ${isOwn ? '' : `<span style="position:absolute;left:0;bottom:0;height:3px;width:${pct}%;background:linear-gradient(90deg,var(--gold-soft),var(--gold-bright));border-radius:2px;transition:width .8s cubic-bezier(.22,1,.36,1)"></span>`}
+                  ${isOwn ? '' : `<span class="chip-bar" style="position:absolute;left:0;bottom:0;height:3px;width:${pct}%;background:linear-gradient(90deg,var(--gold-soft),var(--gold-bright));border-radius:2px;transition:width .8s cubic-bezier(.22,1,.36,1)"></span>`}
                 </button>`;
               })
               .join('');
             return `
-              <div class="award-card reveal" style="animation-delay:${0.05 * idx}s">
+              <div class="award-card reveal" data-award-card="${a.id}" style="animation-delay:${0.05 * idx}s">
                 <div class="row spread" style="align-items:flex-start">
                   <div>
                     <div class="kicker">상 ${String(idx + 1).padStart(2, '0')}</div>
                     <h3>${esc(a.title)}</h3>
                     ${a.description ? `<div class="desc">${esc(a.description)}</div>` : '<div style="height:8px"></div>'}
                   </div>
-                  <span class="badge live">${a.totalVotes} 표</span>
+                  <span class="badge live award-total">${a.totalVotes} 표</span>
                 </div>
                 <div class="chip-grid">${options}</div>
-                ${myPick ? '' : '<p class="muted" style="font-size:.74rem;margin:14px 0 0;letter-spacing:.06em">▸ 아직 투표하지 않았습니다.</p>'}
+                <p class="muted novote-hint ${myPick ? 'hidden' : ''}" style="font-size:.74rem;margin:14px 0 0;letter-spacing:.06em">▸ 아직 투표하지 않았습니다.</p>
               </div>`;
           })
           .join('');
@@ -196,6 +211,47 @@
           if (c.disabled) return;
           c.onclick = () => castVote(c.dataset.award, c.dataset.team);
         });
+      }
+
+      function patchAwards() {
+        const wrap = document.getElementById('awards');
+        for (const a of STATE.awards) {
+          if (a.decided) continue; // 수상 확정 카드는 정적 (전환 시 buildAwards 가 처리)
+          const card = wrap.querySelector(`[data-award-card="${a.id}"]`);
+          if (!card) {
+            buildAwards(); // 구조가 없으면 안전하게 재생성
+            return;
+          }
+          const myPick = MYVOTES[a.id];
+          const max = Math.max(1, ...a.results.map((r) => r.count));
+          const total = card.querySelector('.award-total');
+          if (total) total.textContent = a.totalVotes + ' 표';
+          const hint = card.querySelector('.novote-hint');
+          if (hint) hint.classList.toggle('hidden', !!myPick);
+          for (const t of STATE.teams) {
+            if (t.id === voter.voterTeamId) continue;
+            const chip = card.querySelector(`.chip[data-team="${t.id}"]`);
+            if (!chip) continue;
+            const res = a.results.find((r) => r.teamId === t.id) || { count: 0 };
+            const pct = Math.round((res.count / max) * 100);
+            chip.classList.toggle('selected', myPick === t.id);
+            const tag = chip.querySelector('.tag');
+            if (tag) tag.textContent = res.count + ' 표';
+            const bar = chip.querySelector('.chip-bar');
+            if (bar) bar.style.width = pct + '%';
+          }
+        }
+      }
+
+      function renderAwards() {
+        if (appEl.classList.contains('hidden')) return;
+        const sig = awardsSignature();
+        if (sig !== awardsSig) {
+          awardsSig = sig;
+          buildAwards();
+        } else {
+          patchAwards();
+        }
       }
 
       document.getElementById('switchTeam').onclick = () => {
