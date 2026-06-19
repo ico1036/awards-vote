@@ -1,5 +1,7 @@
 # THE AWARDS — 시상식 실시간 투표 웹앱
 
+[![CI](https://github.com/ico1036/awards-vote/actions/workflows/ci.yml/badge.svg)](https://github.com/ico1036/awards-vote/actions/workflows/ci.yml)
+
 아르데코(Art Deco) 감성의 시상식 투표 웹앱. 관리자가 상장·팀을 등록하고,
 게스트는 소속 팀으로 입장해 상별로 투표하며, 결과는 막대그래프로 실시간
 반영됩니다. "최종 결정"을 누르면 컨페티와 함께 수상 팀이 발표됩니다.
