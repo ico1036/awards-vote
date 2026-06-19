@@ -25,6 +25,13 @@ DEPLOYED="$(git rev-parse HEAD 2>/dev/null || echo none)"
 echo "[autodeploy] 시작 — 배포 커밋 ${DEPLOYED:0:7}, origin/$BRANCH 를 ${INTERVAL}s 마다 감시"
 
 while true; do
+  # 서버 헬스체크 — 죽어 있으면 즉시 재기동 (supervisor 역할). cloudflared 는 건드리지 않음.
+  if ! curl -sf -o /dev/null --max-time 3 "http://localhost:$PORT/api/state"; then
+    echo "[supervisor] 서버 응답 없음 → 재기동"
+    restart_server
+    sleep 2
+  fi
+
   git fetch origin "$BRANCH" --quiet 2>/dev/null || true
   LOCAL="$(git rev-parse HEAD 2>/dev/null || echo none)"
   REMOTE="$(git rev-parse "origin/$BRANCH" 2>/dev/null || echo none)"

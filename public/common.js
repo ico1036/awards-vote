@@ -71,10 +71,24 @@ function clearVoterTeam() {
 function connectStream(onState) {
   let gotSSE = false;
   let pollTimer = null;
+  let lastJson = null;
+
+  // 상태가 실제로 바뀐 경우에만 렌더 콜백 호출 (폴링으로 인한 깜빡임 방지)
+  function emit(state) {
+    let j;
+    try {
+      j = JSON.stringify(state);
+    } catch (e) {
+      j = null;
+    }
+    if (j !== null && j === lastJson) return; // 변화 없음 → 다시 그리지 않음
+    lastJson = j;
+    onState(state);
+  }
 
   async function poll() {
     try {
-      onState(await api('/api/state'));
+      emit(await api('/api/state'));
     } catch (e) {
       /* ignore transient errors */
     }
@@ -99,7 +113,7 @@ function connectStream(onState) {
         pollTimer = null;
       }
       try {
-        onState(JSON.parse(e.data));
+        emit(JSON.parse(e.data));
       } catch (err) {
         /* ignore */
       }
