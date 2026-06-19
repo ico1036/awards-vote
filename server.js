@@ -11,7 +11,7 @@ const { app } = createApp({
 });
 
 app.listen(PORT, () => {
-  console.log(`\n  ✦ THE AWARDS — 투표 서버가 시작되었습니다`);
+  console.log(`\n  ✦ 바사해 2026 — 투표 서버가 시작되었습니다`);
   console.log(`  ✦ http://localhost:${PORT}`);
   console.log(`  ✦ 관리자 비밀번호: ${ADMIN_PASSWORD} (환경변수 ADMIN_PASSWORD로 변경 가능)\n`);
 });
